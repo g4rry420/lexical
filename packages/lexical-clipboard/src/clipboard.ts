@@ -95,7 +95,6 @@ export function $insertDataTransferForRichText(
   selection: RangeSelection | GridSelection,
   editor: LexicalEditor,
 ): void {
-  const htmlString = dataTransfer.getData('text/html');
   const lexicalString = dataTransfer.getData('application/x-lexical-editor');
 
   if (lexicalString) {
@@ -112,6 +111,29 @@ export function $insertDataTransferForRichText(
     } catch {}
   }
 
+  // Multi-line plain text in rich text mode pasted as separate paragrahs
+  // instead of single paragraph with linebreaks.
+  let htmlString = dataTransfer.getData('text/html');
+  if (!htmlString) {
+    const text = dataTransfer.getData('text/plain');
+
+    if (text) {
+      const lines = text.split(/\r?\n/);
+      const linesLength = lines.length;
+
+      if (linesLength <= 1) {
+        selection.insertText(text);
+        return;
+      } else {
+        const htmlLines = [];
+        for (const line of lines) {
+          htmlLines.push('<p>' + line + '</p>');
+        }
+        htmlString = htmlLines.join('');
+      }
+    }
+  }
+
   if (htmlString) {
     try {
       const parser = new DOMParser();
@@ -124,8 +146,6 @@ export function $insertDataTransferForRichText(
       // eslint-disable-next-line no-empty
     } catch {}
   }
-
-  $insertDataTransferForPlainText(dataTransfer, selection);
 }
 
 function $insertGeneratedNodes(
